@@ -231,9 +231,65 @@ body::before {
   .input-area { padding: 10px 14px; }
   .quick-wrap { padding: 8px 14px; }
 }
+.modal-overlay {
+  position: fixed; inset: 0; z-index: 100;
+  background: rgba(0,0,0,0.7);
+  display: flex; align-items: center; justify-content: center;
+}
+.modal-box {
+  background: var(--bg2); border: 1px solid var(--border-gold);
+  border-radius: var(--radius); padding: 28px 28px 24px;
+  width: 90%; max-width: 420px;
+}
+.modal-title { font-family: "Cairo Play", sans-serif; font-size: 18px; font-weight: 800; color: var(--gold); margin-bottom: 6px; }
+.modal-sub { font-size: 13px; color: var(--text-muted); margin-bottom: 20px; line-height: 1.7; }
+.modal-input {
+  width: 100%; padding: 11px 14px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border-gold);
+  background: var(--bg3); color: var(--text);
+  font-family: "Cairo", sans-serif; font-size: 13px;
+  margin-bottom: 14px; direction: ltr;
+}
+.modal-input:focus { outline: none; border-color: var(--gold); }
+.modal-btn {
+  width: 100%; padding: 11px;
+  background: var(--gold); border: none;
+  border-radius: var(--radius-sm);
+  font-family: "Cairo", sans-serif; font-size: 14px; font-weight: 700;
+  color: #0A0A0F; cursor: pointer; transition: opacity 0.15s;
+}
+.modal-btn:hover { opacity: 0.88; }
+.modal-link { font-size: 12px; color: var(--text-muted); text-align: center; margin-top: 12px; }
+.modal-link a { color: var(--gold); text-decoration: none; }
+.key-badge {
+  display: flex; align-items: center; gap: 8px;
+  padding: 5px 12px; border-radius: 20px;
+  border: 1px solid var(--border-gold);
+  background: var(--bg3); color: var(--text-muted);
+  font-size: 12px; cursor: pointer; transition: all 0.15s;
+}
+.key-badge:hover { border-color: var(--gold); color: var(--gold); }
+.key-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--green); }
 </style>
 </head>
 <body data-theme="dark">
+
+<!-- API KEY MODAL -->
+<div class="modal-overlay" id="apiModal">
+  <div class="modal-box">
+    <div class="modal-title">مرحباً بك في الخبير المالي</div>
+    <div class="modal-sub">
+      أدخل مفتاح API الخاص بك من Anthropic عشان يشتغل الخبير المالي.<br>
+      المفتاح يُحفظ في جهازك فقط ولا يُرسل لأي جهة.
+    </div>
+    <input class="modal-input" type="password" id="apiKeyInput" placeholder="sk-ant-api03-..." />
+    <button class="modal-btn" onclick="saveKey()">ابدأ الجلسة</button>
+    <div class="modal-link">
+      ما عندك مفتاح؟ <a href="https://console.anthropic.com" target="_blank">احصل عليه مجاناً من هنا</a>
+    </div>
+  </div>
+</div>
 
 <header class="header">
   <div class="logo">
@@ -245,6 +301,10 @@ body::before {
       <div class="status-dot"></div>
       متاح الآن
     </div>
+    <button class="key-badge" onclick="changeKey()" title="تغيير المفتاح">
+      <span class="key-dot"></span>
+      <span>API Key</span>
+    </button>
     <button class="theme-btn" onclick="toggleTheme()" title="تغيير المود" id="themeBtn">🌙</button>
   </div>
 </header>
@@ -340,6 +400,31 @@ let history = [];
 let isTyping = false;
 let pendingImageB64 = null;
 let pendingImageType = null;
+let apiKey = localStorage.getItem('xpert_api_key') || '';
+
+window.addEventListener('DOMContentLoaded', () => {
+  if (!apiKey) {
+    document.getElementById('apiModal').style.display = 'flex';
+  } else {
+    document.getElementById('apiModal').style.display = 'none';
+  }
+});
+
+function saveKey() {
+  const val = document.getElementById('apiKeyInput').value.trim();
+  if (!val.startsWith('sk-')) {
+    document.getElementById('apiKeyInput').style.borderColor = 'var(--red)';
+    return;
+  }
+  apiKey = val;
+  localStorage.setItem('xpert_api_key', apiKey);
+  document.getElementById('apiModal').style.display = 'none';
+}
+
+function changeKey() {
+  document.getElementById('apiKeyInput').value = apiKey;
+  document.getElementById('apiModal').style.display = 'flex';
+}
 
 function previewImage(e) {
   const file = e.target.files[0];
@@ -435,7 +520,7 @@ async function callAI(userText, imgB64, imgType) {
   try {
     const res = await fetch('https://api.anthropic.com/v1/messages', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 'Content-Type': 'application/json', 'x-api-key': apiKey, 'anthropic-version': '2023-06-01', 'anthropic-dangerous-direct-browser-access': 'true' },
       body: JSON.stringify({
         model: 'claude-sonnet-4-20250514',
         max_tokens: 1000,
